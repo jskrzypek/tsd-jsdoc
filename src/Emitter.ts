@@ -521,7 +521,7 @@ export default class Emitter {
             const ctorParams: dom.Parameter[] = [];
 
             for (const param of doclet.params) {
-                const p = dom.create.parameter(param.name, null);
+                const p = dom.create.parameter(param.name, dom.type.any);
 
                 handleFlags(param, p);
 
@@ -594,7 +594,7 @@ export default class Emitter {
                 const properties = doclet.properties || [];
 
                 type = dom.create.objectType(properties.map((p) => {
-                    const prop = dom.create.property(p.name, null);
+                    const prop = dom.create.property(p.name, dom.type.any);
                     prop.jsDocComment = cleanComment(p.comment);
                     return prop;
                 }));
@@ -646,7 +646,7 @@ function getFunctionParams(doclet: IFunctionDoclet|ITypedefDoclet) {
 
     if (doclet.params) {
         for (const param of doclet.params) {
-            const p = dom.create.parameter(param.name, null);
+            const p = dom.create.parameter(param.name, dom.type.any);
 
             handleFlags(param, p);
 
