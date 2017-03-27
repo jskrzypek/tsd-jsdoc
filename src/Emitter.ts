@@ -398,7 +398,7 @@ export default class Emitter {
         const top = parent._parent;
 
         if (!parent._module) {
-            parent._module = dom.create.module(parent.name);
+            parent._module = dom.create.namespace(parent.name);
 
             if (top)
                 (top._module || top).members.push(parent._module);
@@ -610,6 +610,7 @@ export default class Emitter {
         return (
             !doclet.ignore
             && (doclet as any).kind !== 'package'
+            && (doclet as any).kind !== 'event'
             && (!parent || (parent as any).kind !== 'enum')
             && (this.config.private || doclet.access !== 'private')
         );
