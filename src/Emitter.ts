@@ -495,6 +495,11 @@ export default class Emitter {
             return t;
         }
 
+        // try `this` type
+        if (t === dom.type.this) {
+            return t;
+        }
+
         // any type
         if (t === '*') {
             return dom.type.any;
@@ -531,6 +536,16 @@ export default class Emitter {
             const ctor = dom.create.constructor(ctorParams);
             handleFlags(doclet, ctor);
             obj.members.push(ctor);
+        }
+
+        if (doclet.properties) {
+            for (const property of doclet.properties) {
+                const p = dom.create.property(property.name, dom.type.any);
+
+                handleFlags(property, p);
+
+                obj.members.push(p);
+            }
         }
     }
 
