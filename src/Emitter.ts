@@ -49,7 +49,7 @@ function warnResolve(doclet: TDoclet, reason: EResolveFailure, message: string =
         break;
 
         case EResolveFailure.Augments:
-            str = `Failed to resolve base type of "${doclet.longname}", no object found with name "${(doclet as any).augments[0]}".`;
+            str = `Failed to resolve base type of "${doclet.longname}", no object found with name "${doclet.augments[0]}".`;
         break;
 
         case EResolveFailure.FunctionParam:
@@ -120,6 +120,7 @@ export default class Emitter {
             if (this.objects[doclet.longname] && !(doclet as IFunctionDoclet).override)
                 continue;
 
+            // tslint:disable no-multi-spaces
             // parse based on kind
             switch (doclet.kind) {
                 case 'class':       this._createClass(doclet); break;
@@ -132,6 +133,7 @@ export default class Emitter {
                 case 'namespace':   this._createNamespace(doclet); break;
                 case 'typedef':     this._createTypedef(doclet); break;
             }
+            // tslint:enable no-multi-spaces
 
             const obj = this.objects[doclet.longname];
 
@@ -168,7 +170,8 @@ export default class Emitter {
                     warnResolve(doclet, EResolveFailure.Memberof, 'No such name found.');
                 }
                 else if (!p.members) {
-                    warnResolve(doclet, EResolveFailure.Memberof, `Found parent, but it cannot contain members. Discovered type: ${p.kind}.`);
+                    warnResolve(doclet, EResolveFailure.Memberof,
+                                `Found parent, but it cannot contain members. Discovered type: ${p.kind}.`);
                 }
                 else {
                     if ((obj as any).kind === 'function')
@@ -196,14 +199,15 @@ export default class Emitter {
                 const o = (doclet.kind === 'typedef' ? (obj as any).type : obj) as dom.MethodDeclaration;
 
                 // resolve parameter types
-                for (let i = 0; i < o.parameters.length; ++i) {
-                    (o.parameters[i] as any)._parent = o;
+                for (const [i, param] of o.parameters.entries()) {
+                    (param as any)._parent = o;
                     if (!d.params[i].type) {
-                        warnResolve(d, EResolveFailure.FunctionParam, `No type specified for param: ${d.params[i].name}. Falling back to any.`);
-                        o.parameters[i].type = dom.type.any;
+                        warnResolve(d, EResolveFailure.FunctionParam,
+                                    `No type specified for param: ${d.params[i].name}. Falling back to any.`);
+                        param.type = dom.type.any;
                     }
                     else {
-                        o.parameters[i].type = this._resolveType(d.params[i], o.parameters[i]);
+                        param.type = this._resolveType(d.params[i], param);
                     }
                 }
 
@@ -223,8 +227,8 @@ export default class Emitter {
             // resolve object alias property types
             if (doclet.kind === 'typedef' && (obj as any).type && (obj as any).type.kind === 'object') {
                 const members = (obj as any).type.members as dom.ObjectTypeMember[];
-                for (let i = 0; i < members.length; ++i) {
-                    const m = members[i] as dom.PropertyDeclaration;
+                for (const [i, member] of members.entries()) {
+                    const m = member as dom.PropertyDeclaration;
 
                     (m as any)._parent = (obj as any).type;
 
@@ -254,21 +258,22 @@ export default class Emitter {
                 // resolve constructor types
                 let ctorObj: dom.ConstructorDeclaration = null;
 
-                for (let i = 0; i < o.members.length; ++i) {
-                    if (o.members[i].kind === 'constructor') {
-                        ctorObj = o.members[i] as dom.ConstructorDeclaration;
+                for (const mem of o.members) {
+                    if (mem.kind === 'constructor') {
+                        ctorObj = mem as dom.ConstructorDeclaration;
                     }
                 }
 
                 if (ctorObj) {
-                    for (let i = 0; i < doclet.params.length; ++i) {
+                    for (const [i, param] of doclet.params.entries()) {
                         (ctorObj.parameters[i] as any)._parent = ctorObj;
-                        if (!doclet.params[i].type) {
-                            warnResolve(doclet, EResolveFailure.FunctionParam, `No type specified for constructor param: ${doclet.params[i].name}. Falling back to any.`);
+                        if (!param.type) {
+                            warnResolve(doclet, EResolveFailure.FunctionParam,
+                                        `No type specified for constructor param: ${param.name}. Falling back to any.`);
                             ctorObj.parameters[i].type = dom.type.any;
                         }
                         else {
-                            ctorObj.parameters[i].type = this._resolveType(doclet.params[i], ctorObj.parameters[i]);
+                            ctorObj.parameters[i].type = this._resolveType(param, ctorObj.parameters[i]);
                         }
                     }
                 }
@@ -302,8 +307,8 @@ export default class Emitter {
 
                 // resolve mixes
                 if (doclet.mixes && doclet.mixes.length) {
-                    for (let j = 0; j < doclet.mixes.length; ++j) {
-                        const mix = this.objects[doclet.mixes[j]] as dom.InterfaceDeclaration;
+                    for (const mixName of doclet.mixes) {
+                        const mix = this.objects[mixName] as dom.InterfaceDeclaration;
 
                         if (o.kind === 'class') {
                             o.implements.push(mix);
@@ -331,24 +336,21 @@ export default class Emitter {
 
             if (obj.kind === 'class') {
                 // iterate each interface we implement
-                for (let i = 0; i < obj.implements.length; ++i) {
-                    const impl = obj.implements[i];
+                for (const impl of obj.implements) {
 
                     // iterate each member of that interface
-                    for (let j = 0; j < impl.members.length; ++j) {
-                        const implMember = Object.assign({}, impl.members[j]);
+                    for (const member of impl.members) {
+                        const implMember = Object.assign({}, member);
                         let clsMember: dom.ClassMember = null;
 
                         // search for member in class
-                        for (let x = 0; x < obj.members.length; ++x) {
-                            const mem = obj.members[x];
-
+                        for (const mem of obj.members) {
                             if (mem.kind === 'constructor') {
                                 continue;
                             }
 
-                            if ((obj.members[x] as dom.ObjectTypeMember).name === implMember.name) {
-                                clsMember = obj.members[x];
+                            if ((mem as dom.ObjectTypeMember).name === implMember.name) {
+                                clsMember = mem;
                                 break;
                             }
                         }
@@ -366,9 +368,7 @@ export default class Emitter {
     }
 
     private _resolveModules(classes: any[]) {
-        for (let i = classes.length - 1; i >= 0; --i) {
-            const res = classes[i];
-
+        for (const res of classes.reverse()) {
             if (res.kind === 'class' || res.kind === 'interface') {
                 this._doResolveClassModule(res);
             }
@@ -412,7 +412,7 @@ export default class Emitter {
 
     private _resolveType(
         doclet: ITypedefDoclet|IMemberDoclet|IDocletProp|IDocletReturn,
-        obj: dom.Parameter|dom.PropertyDeclaration|dom.MethodDeclaration|dom.TypeAliasDeclaration
+        obj: dom.Parameter|dom.PropertyDeclaration|dom.MethodDeclaration|dom.TypeAliasDeclaration,
     ): dom.Type {
         const names: string[] = (doclet.type || (doclet as any).properties[0].type).names;
         const types: dom.Type[] = [];
@@ -435,7 +435,7 @@ export default class Emitter {
     private _resolveTypeString(
         t: string,
         doclet: ITypedefDoclet|IMemberDoclet|IDocletProp|IDocletReturn,
-        obj: dom.Parameter|dom.PropertyDeclaration|dom.MethodDeclaration|dom.TypeAliasDeclaration
+        obj: dom.Parameter|dom.PropertyDeclaration|dom.MethodDeclaration|dom.TypeAliasDeclaration,
     ): dom.Type {
         if (t.startsWith('('))
             t = t.replace('(', '');
@@ -454,11 +454,9 @@ export default class Emitter {
         // try object type
         if (t.startsWith('Object.<')) {
             const matches = t.match(rgxObjectType);
+            const [indexTypeStr, valueTypeStr] = matches.slice(1).map((match) => match.trim());
 
-            if (matches && matches[1] && matches[2]) {
-                const indexTypeStr = matches[1].trim();
-                const valueTypeStr = matches[2].trim();
-
+            if (matches && indexTypeStr && valueTypeStr) {
                 if (indexTypeStr !== 'string' && indexTypeStr !== 'number') {
                     warn(`Invalid object index type: "${matches[1]}", must be "string" or "number". Falling back to "any".`);
                     return dom.type.any;
@@ -468,8 +466,8 @@ export default class Emitter {
                     dom.create.indexSignature(
                         'key',
                         indexTypeStr,
-                        this._resolveTypeString(valueTypeStr, doclet, obj)
-                    )
+                        this._resolveTypeString(valueTypeStr, doclet, obj),
+                    ),
                 ]);
             }
         }
@@ -522,8 +520,7 @@ export default class Emitter {
         if (doclet.params) {
             const ctorParams: dom.Parameter[] = [];
 
-            for (let i = 0; i < doclet.params.length; ++i) {
-                const param = doclet.params[i];
+            for (const param of doclet.params) {
                 const p = dom.create.parameter(param.name, null);
 
                 handleFlags(param, p);
@@ -554,17 +551,17 @@ export default class Emitter {
             if (o && o.kind === 'enum')
                 return;
 
-            obj = dom.create.property(doclet.name, null);
+            obj = dom.create.property(doclet.name, dom.type.any);
         }
 
         this.objects[doclet.longname] = obj;
 
         if (doclet.isEnum && doclet.properties) {
-            for (let i = 0; i < doclet.properties.length; ++i) {
-                const prop = doclet.properties[i].meta.code;
+            for (const property of doclet.properties) {
+                const prop = property.meta.code;
                 const val = dom.create.enumValue(prop.name);
 
-                val.jsDocComment = cleanComment(doclet.properties[i].comment);
+                val.jsDocComment = cleanComment(property.comment);
 
                 (obj as dom.EnumDeclaration).members.push(val);
             }
@@ -648,8 +645,7 @@ function getFunctionParams(doclet: IFunctionDoclet|ITypedefDoclet) {
     const fnParams: dom.Parameter[] = [];
 
     if (doclet.params) {
-        for (let i = 0; i < doclet.params.length; ++i) {
-            const param = doclet.params[i];
+        for (const param of doclet.params) {
             const p = dom.create.parameter(param.name, null);
 
             handleFlags(param, p);

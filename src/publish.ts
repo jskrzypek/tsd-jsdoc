@@ -1,6 +1,5 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as env from 'jsdoc/env';
 import * as helper from 'jsdoc/util/templateHelper';
 import Emitter from './Emitter';
 
